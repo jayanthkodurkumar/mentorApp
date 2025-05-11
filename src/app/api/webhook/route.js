@@ -1,13 +1,8 @@
-// app/api/webhook/route.js
-import { buffer } from "micro";
+// src/app/api/webhook/route.js
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
-export const config = {
-  api: {
-    bodyParser: false, // Important for raw Stripe payload
-  },
-};
+// No config export in App Router format
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -16,8 +11,9 @@ const supabase = createClient(
 );
 
 export async function POST(req) {
-  const rawBody = await buffer(req);
-  const sig = req.headers["stripe-signature"];
+  // Get the raw body using native Web API
+  const rawBody = await req.text();
+  const sig = req.headers.get("stripe-signature");
 
   let event;
 
@@ -49,29 +45,40 @@ export async function POST(req) {
       status,
     } = session.metadata; // Retrieve metadata
     console.log("METADATA:", session.metadata);
-    const { data: appointment, error: appointmentError } = await supabase
-      .from("appointments")
-      .insert({
-        mentor_id: mentor_id,
-        mentee_id: mentee_id,
-        appointment_date: appointment_date,
-        start_time: start_time,
-        category: category,
-        notes: notes,
-        status: status,
+
+    try {
+      const { data: appointment, error: appointmentError } = await supabase
+        .from("appointments")
+        .insert({
+          mentor_id: mentor_id,
+          mentee_id: mentee_id,
+          appointment_date: appointment_date,
+          start_time: start_time,
+          category: category,
+          notes: notes,
+          status: status,
+        })
+        .select();
+
+      if (appointmentError) {
+        console.error("Error inserting to Supabase:", appointmentError);
+        return new Response("Error inserting to DB", { status: 500 });
+      }
+
+      console.log("Appointment created successfully:", appointment);
+
+      // 2. Create bill if you want to uncomment this later
+      /*
+      const { error: billError } = await supabase.from("bills").insert({
+        email: customer_email,
+        amount: amount_total / 100, // convert from cents
+        stripe_session_id,
+        paid: true,
       });
-
-    // 2. Create bill
-    // const { error: billError } = await supabase.from("bills").insert({
-    //   email: customer_email,
-    //   amount: amount_total / 100, // convert from cents
-    //   stripe_session_id,
-    //   paid: true,
-    // });
-
-    if (appointmentError) {
-      console.error("Error inserting to Supabase:", appointmentError);
-      return new Response("Error inserting to DB", { status: 500 });
+      */
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      return new Response("Server Error", { status: 500 });
     }
   }
 

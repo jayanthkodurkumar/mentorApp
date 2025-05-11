@@ -25,7 +25,7 @@ export async function POST(req) {
         status: appointmentDetails.status,
       },
       success_url:
-        "https://mentor-cc32062is-jayanths-projects-fcae55a8.vercel.app/",
+        "https://mentor-cc32062is-jayanths-projects-fcae55a8.vercel.app/success",
       cancel_url:
         "https://mentor-cc32062is-jayanths-projects-fcae55a8.vercel.app/cancel",
     });

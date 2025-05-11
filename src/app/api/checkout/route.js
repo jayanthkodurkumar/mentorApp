@@ -25,6 +25,8 @@ export async function POST(req) {
         notes: appointmentDetails.notes,
         status: appointmentDetails.status,
       },
+      success_url: `${origin}/success`,
+      cancel_url: `${origin}/cancel`,
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

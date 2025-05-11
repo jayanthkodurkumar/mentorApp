@@ -24,8 +24,10 @@ export async function POST(req) {
         notes: appointmentDetails.notes,
         status: appointmentDetails.status,
       },
-      success_url: "https://mentorapp.lcl.host:44349/",
-      cancel_url: "https://mentorapp.lcl.host:44349/cancel",
+      success_url:
+        "https://mentor-cc32062is-jayanths-projects-fcae55a8.vercel.app/",
+      cancel_url:
+        "https://mentor-cc32062is-jayanths-projects-fcae55a8.vercel.app/cancel",
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

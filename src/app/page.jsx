@@ -2,9 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
-
 import { supabase } from "./config/dfConfig";
-
 import Onboarding from "./home/Onboarding";
 import MenteeDashboard from "./home/Mentees/MenteeDashboard";
 import MentorDashboard from "./home/Mentors/MentorDashboard";

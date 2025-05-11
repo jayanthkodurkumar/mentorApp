@@ -14,8 +14,6 @@ export default function MenteeDashboard() {
   const [mentors, setMentors] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
 
-  // console.log(user);
-
   useEffect(() => {
     const fetchUserAndMentors = async () => {
       const { data: userData, error: userError } = await supabase

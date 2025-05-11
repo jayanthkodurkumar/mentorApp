@@ -39,6 +39,34 @@ export default function BookAppointment() {
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [menteeId, setMenteeId] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // console.log(user);
+  const handleCheckout = async () => {
+    setLoading(true);
+    const priceId = "price_1RNdptRw14aFggGHsJXLYfLL";
+    const appointmentDetails = {
+      mentor_id: mentorId,
+      mentee_id: menteeId,
+      appointment_date: selectedDate,
+      start_time: selectedSlot,
+      category: category,
+      notes: notes,
+      status: "pending",
+    };
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      body: JSON.stringify({ priceId, appointmentDetails }),
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert("Error creating Stripe session.");
+    }
+
+    setLoading(false);
+  };
 
   // Fetch mentee details from Clerk user ID
   useEffect(() => {
@@ -281,7 +309,9 @@ export default function BookAppointment() {
           </div>
 
           <DialogFooter>
-            <Button onClick={handleBookAppointment}>Book</Button>
+            <Button onClick={handleCheckout} disabled={loading}>
+              {loading ? "Processing..." : "Book Now"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

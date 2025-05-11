@@ -4,11 +4,11 @@ import React, { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { supabase } from "../config/dfConfig";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup } from "@/components/ui/radio-group";
-import { supabase } from "../config/dfConfig";
+import { Button } from "@/components/ui/button";
 
 export default function Onboarding({ userData, toggleStatus }) {
   const router = useRouter();

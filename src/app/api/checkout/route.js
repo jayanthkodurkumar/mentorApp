@@ -6,6 +6,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 export async function POST(req) {
   const { priceId, appointmentDetails } = await req.json();
   // console.log(appointmentDetails);
+  const origin = req.headers.get("origin");
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -24,10 +25,8 @@ export async function POST(req) {
         notes: appointmentDetails.notes,
         status: appointmentDetails.status,
       },
-      success_url:
-        "https://mentor-cc32062is-jayanths-projects-fcae55a8.vercel.app/success",
-      cancel_url:
-        "https://mentor-cc32062is-jayanths-projects-fcae55a8.vercel.app/cancel",
+      success_url: `${origin}/success`,
+      cancel_url: `${origin}/cancel`,
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

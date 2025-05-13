@@ -41,7 +41,7 @@ export async function POST(req) {
       appointment_date,
       start_time,
       category,
-      notes,
+      mentee_notes,
       status,
     } = session.metadata; // Retrieve metadata
     console.log("METADATA:", session.metadata);
@@ -55,7 +55,7 @@ export async function POST(req) {
           appointment_date: appointment_date,
           start_time: start_time,
           category: category,
-          notes: notes,
+          mentee_notes: mentee_notes,
           status: status,
         })
         .select();

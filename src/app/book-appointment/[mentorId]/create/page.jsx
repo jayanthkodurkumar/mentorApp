@@ -51,7 +51,7 @@ export default function BookAppointment() {
       appointment_date: selectedDate,
       start_time: selectedSlot,
       category: category,
-      notes: notes,
+      mentee_notes: mentee_notes,
       status: "pending",
     };
     const res = await fetch("/api/checkout", {
@@ -193,7 +193,7 @@ export default function BookAppointment() {
         appointment_date: selectedDate,
         start_time: selectedSlot,
         category: category,
-        notes: notes,
+        mentee_notes: mentee_notes,
         status: "pending", // Set status as pending initially
       },
     ]);

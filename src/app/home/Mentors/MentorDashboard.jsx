@@ -100,7 +100,6 @@ const MentorDashboard = () => {
     mentee_email,
     appointment_date
   ) => {
-    console.log(mentor_name);
     try {
       const response = await axios.post("/api/emailnotification", {
         mentor_name,
@@ -117,9 +116,8 @@ const MentorDashboard = () => {
       );
     }
   };
-  // Function to update appointment status and notify mentee
+
   const updateStatus = async (id, newStatus) => {
-    // Fetch the appointment details using the appointment ID
     const { data: appointment, error: apptError } = await supabase
       .from("appointments")
       .select("mentor_id, mentee_id, appointment_date")
@@ -131,7 +129,6 @@ const MentorDashboard = () => {
       return;
     }
 
-    // Fetch the mentor's and mentee's details from the users table
     const { data: mentorData, error: mentorError } = await supabase
       .from("users")
       .select("full_name, email")
@@ -149,7 +146,6 @@ const MentorDashboard = () => {
       return;
     }
 
-    // Update the status of the appointment in the database
     const { error } = await supabase
       .from("appointments")
       .update({ status: newStatus })
@@ -160,7 +156,6 @@ const MentorDashboard = () => {
       return;
     }
 
-    // Send the email notification to the mentee
     notifyMentee(
       mentorData.full_name,
       newStatus,
@@ -168,7 +163,6 @@ const MentorDashboard = () => {
       appointment.appointment_date
     );
 
-    // Update the local state (appointments) to reflect the new status
     setAppointments((prev) =>
       prev.map((appt) =>
         appt.id === id ? { ...appt, status: newStatus } : appt
@@ -178,6 +172,27 @@ const MentorDashboard = () => {
   };
 
   const completeAppointment = async () => {
+    const appointmentStart = new Date(selectedAppt.start_time);
+    const now = new Date();
+
+    // Check if it's the same calendar date
+    const isSameDate =
+      now.getFullYear() === appointmentStart.getFullYear() &&
+      now.getMonth() === appointmentStart.getMonth() &&
+      now.getDate() === appointmentStart.getDate();
+
+    // Check if current time is at least 15 minutes past start_time
+    const fifteenMinutesInMs = 15 * 60 * 1000;
+    const isPastFifteenMinutes =
+      now.getTime() >= appointmentStart.getTime() + fifteenMinutesInMs;
+
+    if (!isSameDate || !isPastFifteenMinutes) {
+      alert(
+        "You can only complete an appointment at least 15 minutes after its start time on the same day."
+      );
+      return;
+    }
+
     const { error } = await supabase
       .from("appointments")
       .update({
@@ -204,7 +219,10 @@ const MentorDashboard = () => {
     setMentorNotes("");
   };
 
+  const now = new Date();
+
   const groupedAppointments = {
+    upcoming: [],
     pending: [],
     confirmed: [],
     cancelled: [],
@@ -213,12 +231,16 @@ const MentorDashboard = () => {
   };
 
   appointments.forEach((appt) => {
+    const appointmentDateTime = new Date(
+      `${appt.appointment_date}T${appt.start_time}`
+    );
+    if (appt.status === "confirmed" && appointmentDateTime >= now) {
+      groupedAppointments.upcoming.push(appt);
+    }
     if (groupedAppointments[appt.status]) {
       groupedAppointments[appt.status].push(appt);
     }
   });
-
-  if (loading) return <div className="p-4">Loading appointments...</div>;
 
   const renderTable = (list) => (
     <div className="rounded-md border">
@@ -226,8 +248,8 @@ const MentorDashboard = () => {
         <TableHeader>
           <TableRow>
             <TableHead>Date</TableHead>
-            <TableHead>Mentee</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Time</TableHead>
+            <TableHead>Mentee Name</TableHead>
             <TableHead className="text-right"></TableHead>
           </TableRow>
         </TableHeader>
@@ -242,8 +264,8 @@ const MentorDashboard = () => {
             list.map((appt) => (
               <TableRow key={appt.id}>
                 <TableCell>{appt.appointment_date}</TableCell>
+                <TableCell>{format12Hour(appt.start_time)}</TableCell>
                 <TableCell>{appt.mentee_name}</TableCell>
-                <TableCell className="capitalize">{appt.status}</TableCell>
                 <TableCell className="text-right">
                   <Dialog>
                     <DialogTrigger asChild>
@@ -375,18 +397,24 @@ const MentorDashboard = () => {
     </div>
   );
 
+  if (loading) return <div className="p-4">Loading appointments...</div>;
+
   return (
     <div className="p-4">
       <h2 className="text-xl font-bold mb-4">Your Appointments</h2>
 
-      <Tabs defaultValue="pending" className="w-full">
+      <Tabs defaultValue="upcoming" className="w-full">
         <TabsList className="mb-4">
+          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
           <TabsTrigger value="pending">Pending Requests</TabsTrigger>
           <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
           <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
           <TabsTrigger value="declined">Declined</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
         </TabsList>
+        <TabsContent value="upcoming">
+          {renderTable(groupedAppointments.upcoming)}
+        </TabsContent>
         <TabsContent value="pending">
           {renderTable(groupedAppointments.pending)}
         </TabsContent>

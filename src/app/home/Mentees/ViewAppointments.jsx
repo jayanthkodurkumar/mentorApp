@@ -135,11 +135,12 @@ const Loading = () => (
 );
 
 const AppointmentTable = ({ appointments, status }) => {
+  const { user } = useUser();
   const [loadingId, setLoadingId] = useState(null);
   const [openDialogId, setOpenDialogId] = useState(null);
   const [cancelNote, setCancelNote] = useState("");
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-
+  const emailAddress = user.emailAddresses[0]?.emailAddress;
   const formatTime = (timeStr) => {
     const [hour, minute] = timeStr.split(":");
     const date = new Date();
@@ -152,12 +153,29 @@ const AppointmentTable = ({ appointments, status }) => {
 
   const handleCheckout = async (appointment) => {
     setLoadingId(appointment.id);
-    const priceId = "price_1RNdptRw14aFggGHsJXLYfLL";
+    const { data: priceData, error: priceError } = await supabase
+      .from("price_id") // Replace with your actual table name if different
+      .select("price_id")
+      .eq("mentor_id", appointment.mentor_id)
+      .single();
+    console.log(priceData);
+    if (priceError || !priceData) {
+      alert("Failed to fetch price for mentor.");
+      console.error("Stripe price fetch error:", priceError?.message);
+      setLoadingId(null);
+      return;
+    }
+
+    const priceId = priceData.price_id;
 
     const res = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ priceId, appointmentDetails: appointment }),
+      body: JSON.stringify({
+        priceId,
+        appointmentDetails: appointment,
+        email: emailAddress,
+      }),
     });
 
     const data = await res.json();

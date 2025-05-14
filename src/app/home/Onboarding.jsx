@@ -20,6 +20,7 @@ export default function Onboarding({ userData, toggleStatus }) {
   const [country, setCountry] = useState("");
   const [bio, setBio] = useState("");
   const [meetingLink, setMeetingLink] = useState(""); // new state
+  const [price, setPrice] = useState("");
 
   useEffect(() => {
     if (userData?.full_name) {
@@ -38,43 +39,75 @@ export default function Onboarding({ userData, toggleStatus }) {
         role: role,
         job_role: role === "mentor" ? jobRole : null,
         country: country,
-        bio: role === "mentee" ? bio : null,
+        bio,
         company: company,
         meet_url: role === "mentor" ? meetingLink : null,
+        price: role === "mentor" ? parseInt(price) : null,
       })
       .select()
-      .single(); // returns inserted user so we get mentor ID
+      .single();
 
     if (insertError) {
       console.log(insertError);
       return;
     }
 
-    if (role === "mentor" && insertedUser?.id) {
-      const mentorId = insertedUser.id;
+    const mentorId = insertedUser?.id;
 
-      const defaultSchedules = [
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-        "sunday",
-      ].map((day) => ({
-        mentor_id: mentorId,
-        day_of_week: day,
-        start_time: "16:00",
-        end_time: "20:00",
-        status: "available",
-      }));
+    if (role === "mentor") {
+      try {
+        const res = await fetch("/api/create-stripe-product", {
+          method: "POST",
+          body: JSON.stringify({
+            fullName,
+            price,
+            mentorId,
+          }),
+        });
 
-      const { error: scheduleError } = await supabase
-        .from("mentor_schedules")
-        .insert(defaultSchedules);
+        const result = await res.json();
 
-      if (scheduleError) {
-        console.log("Schedule insertion failed:", scheduleError);
+        if (res.ok) {
+          const { error: priceInsertError } = await supabase
+            .from("price_id")
+            .insert({
+              mentor_id: mentorId,
+              price_id: result.price_id,
+            });
+
+          if (priceInsertError) {
+            console.log("Failed to insert price_id:", priceInsertError);
+          }
+        } else {
+          console.error("Stripe API failed:", result.error);
+        }
+
+        // Schedule setup...
+        const defaultSchedules = [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday",
+          "sunday",
+        ].map((day) => ({
+          mentor_id: mentorId,
+          day_of_week: day,
+          start_time: "16:00",
+          end_time: "20:00",
+          status: "available",
+        }));
+
+        const { error: scheduleError } = await supabase
+          .from("mentor_schedules")
+          .insert(defaultSchedules);
+
+        if (scheduleError) {
+          console.log("Schedule insertion failed:", scheduleError);
+        }
+      } catch (err) {
+        console.error("Failed to create mentor product/price:", err);
       }
     }
 
@@ -141,6 +174,27 @@ export default function Onboarding({ userData, toggleStatus }) {
                 value={meetingLink}
                 onChange={(e) => setMeetingLink(e.target.value)}
                 placeholder="Enter your meeting link"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="price">Session Price (in USD)</Label>
+              <Input
+                id="price"
+                type="number"
+                min="0"
+                step="1"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="Enter your session price"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Tell mentees about your background, experience, and how you can help."
               />
             </div>
           </>

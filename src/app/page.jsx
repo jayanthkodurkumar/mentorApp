@@ -16,7 +16,7 @@ export default function Home() {
   const toggleStatus = () => {
     setUserOnboarded(!userOnboarded);
   };
-  // console.log(user);
+  // console.log(user.emailAddresses[0].emailAddress);
 
   const isUserOnboarded = async () => {
     const userId = user.id;

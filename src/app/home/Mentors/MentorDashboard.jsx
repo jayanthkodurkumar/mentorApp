@@ -131,7 +131,7 @@ const MentorDashboard = () => {
 
     const { data: mentorData, error: mentorError } = await supabase
       .from("users")
-      .select("full_name, email")
+      .select("full_name, email, meet_url")
       .eq("id", appointment.mentor_id)
       .single();
 
@@ -146,14 +146,24 @@ const MentorDashboard = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from("appointments")
-      .update({ status: newStatus })
-      .eq("id", id);
-
-    if (error) {
-      alert("Failed to update status");
-      return;
+    if (newStatus === "accepted") {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ status: newStatus, meet_url: mentorData.meet_url })
+        .eq("id", id);
+      if (error) {
+        alert("Failed to update status");
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ status: newStatus })
+        .eq("id", id);
+      if (error) {
+        alert("Failed to update status");
+        return;
+      }
     }
 
     notifyMentee(
@@ -224,7 +234,7 @@ const MentorDashboard = () => {
   const groupedAppointments = {
     upcoming: [],
     pending: [],
-    confirmed: [],
+    accepted: [],
     cancelled: [],
     declined: [],
     completed: [],
@@ -234,7 +244,7 @@ const MentorDashboard = () => {
     const appointmentDateTime = new Date(
       `${appt.appointment_date}T${appt.start_time}`
     );
-    if (appt.status === "confirmed" && appointmentDateTime >= now) {
+    if (appt.status === "booked" && appointmentDateTime >= now) {
       groupedAppointments.upcoming.push(appt);
     }
     if (groupedAppointments[appt.status]) {
@@ -305,13 +315,18 @@ const MentorDashboard = () => {
                               <strong>Mentor Notes:</strong> {appt.mentor_notes}
                             </p>
                           )}
+                          {appt.mentee_notes && (
+                            <p>
+                              <strong>Mentee Notes:</strong> {appt.mentee_notes}
+                            </p>
+                          )}
                         </div>
                         <DialogFooter className="mt-4">
                           {appt.status === "pending" && (
                             <>
                               <Button
                                 onClick={() =>
-                                  updateStatus(appt.id, "confirmed")
+                                  updateStatus(appt.id, "accepted")
                                 }
                               >
                                 Accept Request
@@ -326,7 +341,7 @@ const MentorDashboard = () => {
                               </Button>
                             </>
                           )}
-                          {appt.status === "confirmed" && (
+                          {appt.status === "accepted" && (
                             <>
                               <Button
                                 variant="destructive"
@@ -407,7 +422,7 @@ const MentorDashboard = () => {
         <TabsList className="mb-4">
           <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
           <TabsTrigger value="pending">Pending Requests</TabsTrigger>
-          <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
+          <TabsTrigger value="accepted">Accepted</TabsTrigger>
           <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
           <TabsTrigger value="declined">Declined</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
@@ -418,8 +433,8 @@ const MentorDashboard = () => {
         <TabsContent value="pending">
           {renderTable(groupedAppointments.pending)}
         </TabsContent>
-        <TabsContent value="confirmed">
-          {renderTable(groupedAppointments.confirmed)}
+        <TabsContent value="accepted">
+          {renderTable(groupedAppointments.accepted)}
         </TabsContent>
         <TabsContent value="cancelled">
           {renderTable(groupedAppointments.cancelled)}

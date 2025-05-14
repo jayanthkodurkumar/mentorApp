@@ -1,5 +1,5 @@
 "use client";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,6 +27,7 @@ import {
 import { useUser } from "@clerk/nextjs";
 
 export default function BookAppointment() {
+  const router = useRouter();
   const params = useParams();
   const mentorId = params.mentorId;
   const { user } = useUser();
@@ -42,30 +43,14 @@ export default function BookAppointment() {
   const [loading, setLoading] = useState(false);
 
   // console.log(user);
-  const handleCheckout = async () => {
-    setLoading(true);
-    const priceId = "price_1RNdptRw14aFggGHsJXLYfLL";
-    const appointmentDetails = {
-      mentor_id: mentorId,
-      mentee_id: menteeId,
-      appointment_date: selectedDate,
-      start_time: selectedSlot,
-      category: category,
-      mentee_notes: mentee_notes,
-      status: "pending",
-    };
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      body: JSON.stringify({ priceId, appointmentDetails }),
+  const format12Hour = (timeStr) => {
+    const [hour, minute] = timeStr.split(":");
+    const date = new Date();
+    date.setHours(+hour, +minute);
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
     });
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      alert("Error creating Stripe session.");
-    }
-
-    setLoading(false);
   };
 
   // Fetch mentee details from Clerk user ID
@@ -78,7 +63,7 @@ export default function BookAppointment() {
         .single();
 
       if (error) {
-        console.error("Error fetching mentee ID:", error.message);
+        console.log("Error fetching mentee ID:", error.message);
       } else {
         setMenteeId(data?.id); // Set the mentee ID
       }
@@ -99,7 +84,7 @@ export default function BookAppointment() {
         .single();
 
       if (error) {
-        console.error("Error fetching mentor:", error.message);
+        console.log("Error fetching mentor:", error.message);
       } else {
         setMentor(data);
       }
@@ -193,13 +178,13 @@ export default function BookAppointment() {
         appointment_date: selectedDate,
         start_time: selectedSlot,
         category: category,
-        mentee_notes: mentee_notes,
+        mentee_notes: notes,
         status: "pending", // Set status as pending initially
       },
     ]);
 
     if (error) {
-      console.error("Error booking appointment:", error.message);
+      console.log("Error booking appointment:", error.message);
     } else {
       console.log("Appointment booked:", data);
       // Reset form fields after booking
@@ -207,6 +192,7 @@ export default function BookAppointment() {
       setSelectedSlot(null);
       setCategory("");
       setNotes("");
+      router.push("/");
     }
   };
 
@@ -264,7 +250,7 @@ export default function BookAppointment() {
                         : "hover:bg-muted"
                     }`}
                   >
-                    {slot}
+                    {format12Hour(slot)}
                   </div>
                 ))
               ) : selectedDate ? (
@@ -309,7 +295,7 @@ export default function BookAppointment() {
           </div>
 
           <DialogFooter>
-            <Button onClick={handleCheckout} disabled={loading}>
+            <Button onClick={handleBookAppointment} disabled={loading}>
               {loading ? "Processing..." : "Book Now"}
             </Button>
           </DialogFooter>

@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-
 import { useRouter } from "next/navigation";
 
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { supabase } from "../config/dfConfig";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea"; // make sure you have this component
+import { supabase } from "../config/dfConfig";
 
 export default function Onboarding({ userData, toggleStatus }) {
   const router = useRouter();
@@ -16,11 +16,10 @@ export default function Onboarding({ userData, toggleStatus }) {
   const [fullName, setFullName] = useState(userData.full_name);
   const [role, setRole] = useState("mentee");
   const [jobRole, setJobRole] = useState("");
+  const [company, setCompany] = useState("");
   const [country, setCountry] = useState("");
   const [bio, setBio] = useState("");
-  const [company, setCompany] = useState("");
-
-  console.log("USER", userData);
+  const [meetingLink, setMeetingLink] = useState(""); // new state
 
   useEffect(() => {
     if (userData?.full_name) {
@@ -28,26 +27,59 @@ export default function Onboarding({ userData, toggleStatus }) {
     }
   }, [userData]);
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const { error } = await supabase.from("users").insert({
-      clerk_id: userData?.clerk_id,
-      full_name: fullName,
-      role: role,
-      job_role: role === "mentor" ? jobRole : null,
-      country: country,
-      bio: role === "mentee" ? bio : null,
-      company: company,
-    });
+    const { data: insertedUser, error: insertError } = await supabase
+      .from("users")
+      .insert({
+        clerk_id: userData?.clerk_id,
+        full_name: fullName,
+        role: role,
+        job_role: role === "mentor" ? jobRole : null,
+        country: country,
+        bio: role === "mentee" ? bio : null,
+        company: company,
+        meet_url: role === "mentor" ? meetingLink : null,
+      })
+      .select()
+      .single(); // returns inserted user so we get mentor ID
 
-    if (error) {
-      console.log(error);
-    } else {
-      toggleStatus();
-      router.push("/");
+    if (insertError) {
+      console.log(insertError);
+      return;
     }
+
+    if (role === "mentor" && insertedUser?.id) {
+      const mentorId = insertedUser.id;
+
+      const defaultSchedules = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+      ].map((day) => ({
+        mentor_id: mentorId,
+        day_of_week: day,
+        start_time: "16:00",
+        end_time: "20:00",
+        status: "available",
+      }));
+
+      const { error: scheduleError } = await supabase
+        .from("mentor_schedules")
+        .insert(defaultSchedules);
+
+      if (scheduleError) {
+        console.log("Schedule insertion failed:", scheduleError);
+      }
+    }
+
+    toggleStatus();
+    router.push("/");
   };
 
   return (
@@ -56,7 +88,7 @@ export default function Onboarding({ userData, toggleStatus }) {
       <p className="text-center text-gray-500">Let’s get you started.</p>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Full Name Input */}
+        {/* Full Name */}
         <div className="space-y-2">
           <Label htmlFor="fullName">Full Name</Label>
           <Input
@@ -87,21 +119,34 @@ export default function Onboarding({ userData, toggleStatus }) {
           </RadioGroup>
         </div>
 
-        {/* Job Role Input (for mentors only) */}
+        {/* Mentor Fields */}
         {role === "mentor" && (
-          <div className="space-y-2">
-            <Label htmlFor="jobRole">Job Role</Label>
-            <Input
-              id="jobRole"
-              type="text"
-              value={jobRole}
-              onChange={(e) => setJobRole(e.target.value)}
-              placeholder="Enter your job role"
-            />
-          </div>
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="jobRole">Job Role</Label>
+              <Input
+                id="jobRole"
+                type="text"
+                value={jobRole}
+                onChange={(e) => setJobRole(e.target.value)}
+                placeholder="Enter your job role"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="meetingLink">Meeting Link</Label>
+              <Input
+                id="meetingLink"
+                type="url"
+                value={meetingLink}
+                onChange={(e) => setMeetingLink(e.target.value)}
+                placeholder="Enter your meeting link"
+              />
+            </div>
+          </>
         )}
 
-        {/* Company Input */}
+        {/* Company */}
         <div className="space-y-2">
           <Label htmlFor="company">Company</Label>
           <Input
@@ -113,7 +158,7 @@ export default function Onboarding({ userData, toggleStatus }) {
           />
         </div>
 
-        {/* Country Input */}
+        {/* Country */}
         <div className="space-y-2">
           <Label htmlFor="country">Country</Label>
           <Input
@@ -125,7 +170,7 @@ export default function Onboarding({ userData, toggleStatus }) {
           />
         </div>
 
-        {/* Bio Input (for mentees only) */}
+        {/* Mentee Bio */}
         {role === "mentee" && (
           <div className="space-y-2">
             <Label htmlFor="bio">Bio</Label>
@@ -138,7 +183,6 @@ export default function Onboarding({ userData, toggleStatus }) {
           </div>
         )}
 
-        {/* Submit Button */}
         <Button type="submit" className="w-full">
           Continue
         </Button>

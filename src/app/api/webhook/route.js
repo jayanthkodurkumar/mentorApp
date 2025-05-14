@@ -14,7 +14,10 @@ export async function POST(req) {
   // Get the raw body using native Web API
   const rawBody = await req.text();
   const sig = req.headers.get("stripe-signature");
+  const headers = req.headers;
+  // console.log("Headers:", headers);
 
+  // console.log("SIGNATURE", sig);
   let event;
 
   try {
@@ -35,37 +38,22 @@ export async function POST(req) {
     const { customer_email, amount_total, id: stripe_session_id } = session;
 
     // 1. Create appointment
-    const {
-      mentor_id,
-      mentee_id,
-      appointment_date,
-      start_time,
-      category,
-      mentee_notes,
-      status,
-    } = session.metadata; // Retrieve metadata
+    const { appointment_id } = session.metadata; // Retrieve metadata
     console.log("METADATA:", session.metadata);
 
     try {
-      const { data: appointment, error: appointmentError } = await supabase
+      const { data, error } = await supabase
         .from("appointments")
-        .insert({
-          mentor_id: mentor_id,
-          mentee_id: mentee_id,
-          appointment_date: appointment_date,
-          start_time: start_time,
-          category: category,
-          mentee_notes: mentee_notes,
-          status: status,
-        })
+        .update({ status: "booked" }) // or confirmed if that's your status
+        .eq("id", appointment_id)
         .select();
 
-      if (appointmentError) {
-        console.error("Error inserting to Supabase:", appointmentError);
-        return new Response("Error inserting to DB", { status: 500 });
+      if (error) {
+        console.error("Error updating appointment:", error);
+        return new Response("Error updating appointment", { status: 500 });
       }
 
-      console.log("Appointment created successfully:", appointment);
+      console.log("Appointment payment marked successfully:", data);
 
       // 2. Create bill if you want to uncomment this later
       /*

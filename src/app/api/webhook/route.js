@@ -65,18 +65,52 @@ export async function POST(req) {
       await resend.emails.send({
         from: "onboarding@resend.dev",
         to: customer_details.email,
-        subject: "Appointment Confirmed & Payment Received",
+        subject: `Hoorayy!!! Your Meeting with ${mentor_name} is Confirmed & Payment Received`,
         html: `
-          <h2>Thank you for your payment!</h2>
-          <p>Your appointment has been confirmed.</p>
-          <ul>
-              <li><strong>Appointment ID:</strong> ${appointment_id}</li>
-              <li><strong>Mentor:</strong> ${mentor_name}</li>
-              <li><strong>Date:</strong> ${date}</li>
-              <li><strong>Time:</strong> ${time}</li>
-              <li><strong>Meeting Link:</strong> <a href="${meet_url}">Join Meeting</a></li>
-              <li><strong>Amount Paid:</strong> $${formattedAmount} USD</li>
-          </ul>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.05);">
+  <div style="background-color: #4f46e5; color: #fff; padding: 20px;">
+    <h2 style="margin: 0;">Payment Recieved</h2>
+  </div>
+
+  <div style="padding: 20px;">
+    <h3 style="margin-top: 0; color: #333;">Receipt Details</h3>
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <tr>
+        <td style="padding: 8px 0; color: #666;"><strong>Appointment ID:</strong></td>
+        <td style="padding: 8px 0;">${appointment_id}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #666;"><strong>Mentor:</strong></td>
+        <td style="padding: 8px 0;">${mentor_name}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #666;"><strong>Date:</strong></td>
+        <td style="padding: 8px 0;">${date}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #666;"><strong>Time:</strong></td>
+        <td style="padding: 8px 0;">${time}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #666;"><strong>Meeting Link:</strong></td>
+        <td style="padding: 8px 0;"><a href="${meet_url}" style="color: #4f46e5;">Join Meeting</a></td>
+      </tr>
+      <tr style="border-top: 1px solid #e0e0e0;">
+        <td style="padding: 12px 0; color: #333;"><strong>Total Paid:</strong></td>
+        <td style="padding: 12px 0;"><strong>$${formattedAmount} USD</strong></td>
+      </tr>
+    </table>
+
+    <p style="margin-top: 20px; font-size: 13px; color: #888;">
+      If you have any questions, feel free to reply to this email. We're here to help!
+    </p>
+  </div>
+
+  <div style="background-color: #f9f9f9; text-align: center; padding: 10px; font-size: 12px; color: #aaa;">
+    &copy; ${new Date().getFullYear()} Mentor Platform. All rights reserved.
+  </div>
+</div>
+
         `,
       });
     } catch (error) {

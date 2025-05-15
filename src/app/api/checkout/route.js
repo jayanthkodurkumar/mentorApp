@@ -30,6 +30,11 @@ export async function POST(req) {
       .eq("id", appointmentDetails.mentor_id)
       .single();
 
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000");
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer: customer.id,
@@ -51,9 +56,8 @@ export async function POST(req) {
         meet_url: appointmentDetails.meet_url,
       },
 
-      success_url: "http://localhost:3000/",
-      cancel_url:
-        "https://mentor-cc32062is-jayanths-projects-fcae55a8.vercel.app/cancel",
+      success_url: `${baseUrl}/success`,
+      cancel_url: `${baseUrl}/cancel`,
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

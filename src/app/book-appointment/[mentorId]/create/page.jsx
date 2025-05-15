@@ -118,10 +118,29 @@ export default function BookAppointment() {
 
       const { data, error } = await supabase
         .from("mentor_schedules")
-        .select("start_time, end_time")
+        .select("start_time, end_time, status")
         .eq("mentor_id", mentorId)
         .eq("day_of_week", weekday)
         .single();
+
+      if (error) {
+        console.log("Error fetching schedule:", error.message);
+        setSlots([]);
+        return;
+      }
+
+      // if the mentor is unavailable, skip generating slots
+      if (!data || data.status !== "available") {
+        setSlots([]);
+        return;
+      }
+
+      const slotList = generateTimeSlots(
+        data.start_time,
+        data.end_time,
+        booked
+      );
+      setSlots(slotList);
 
       const { data: bookedData, error: bookedError } = await supabase
         .from("appointments")

@@ -1,4 +1,5 @@
 "use client";
+
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,7 +43,6 @@ export default function BookAppointment() {
   const [menteeId, setMenteeId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // console.log(user);
   const format12Hour = (timeStr) => {
     const [hour, minute] = timeStr.split(":");
     const date = new Date();
@@ -53,19 +53,18 @@ export default function BookAppointment() {
     });
   };
 
-  // Fetch mentee details from Clerk user ID
   useEffect(() => {
     const fetchMenteeId = async () => {
       const { data, error } = await supabase
         .from("users")
         .select("id")
-        .eq("clerk_id", user.id) // Assuming the users table stores clerk_id
+        .eq("clerk_id", user.id)
         .single();
 
       if (error) {
         console.log("Error fetching mentee ID:", error.message);
       } else {
-        setMenteeId(data?.id); // Set the mentee ID
+        setMenteeId(data?.id);
       }
     };
 
@@ -74,7 +73,6 @@ export default function BookAppointment() {
     }
   }, [user]);
 
-  // Fetch mentor details
   useEffect(() => {
     const fetchMentor = async () => {
       const { data, error } = await supabase
@@ -94,26 +92,22 @@ export default function BookAppointment() {
       fetchMentor();
     }
   }, [mentorId]);
+
   const generateTimeSlots = (start, end, bookedSlots) => {
-    // console.log(bookedSlots);
     const slots = [];
     let startTime = new Date(`1970-01-01T${start}`);
     const endTime = new Date(`1970-01-01T${end}`);
 
     while (startTime < endTime) {
       const time = startTime.toTimeString().slice(0, 5); // HH:MM
-
-      // Only add the slot if it's not already booked
       if (!bookedSlots.includes(time)) {
         slots.push(time);
       }
-
       startTime.setMinutes(startTime.getMinutes() + 30);
     }
-
     return slots;
   };
-  // Fetch mentor schedule and booked slots
+
   useEffect(() => {
     const fetchSchedule = async () => {
       if (!selectedDate) return;
@@ -122,7 +116,6 @@ export default function BookAppointment() {
         .toLocaleDateString("en-US", { weekday: "long" })
         .toLowerCase();
 
-      // Fetch schedule
       const { data, error } = await supabase
         .from("mentor_schedules")
         .select("start_time, end_time")
@@ -130,7 +123,6 @@ export default function BookAppointment() {
         .eq("day_of_week", weekday)
         .single();
 
-      // Fetch booked slots
       const { data: bookedData, error: bookedError } = await supabase
         .from("appointments")
         .select("start_time")
@@ -142,7 +134,7 @@ export default function BookAppointment() {
         return;
       }
 
-      const booked = bookedData.map((a) => a.start_time.slice(0, 5)); // Format to HH:MM
+      const booked = bookedData.map((a) => a.start_time.slice(0, 5));
       setBookedSlots(booked);
 
       if (error) {
@@ -153,7 +145,7 @@ export default function BookAppointment() {
           data.start_time,
           data.end_time,
           booked
-        ); // use `booked` here, not `bookedSlots`
+        );
         setSlots(slotList);
       } else {
         setSlots([]);
@@ -163,31 +155,30 @@ export default function BookAppointment() {
     fetchSchedule();
   }, [selectedDate, mentorId]);
 
-  // Handle appointment booking
   const handleBookAppointment = async () => {
     if (!user) {
       console.log("User is not logged in");
       return;
     }
 
-    // Insert appointment into the appointments table
+    setLoading(true);
     const { data, error } = await supabase.from("appointments").insert([
       {
         mentor_id: mentorId,
         mentee_id: menteeId,
         appointment_date: selectedDate,
         start_time: selectedSlot,
-        category: category,
+        category,
         mentee_notes: notes,
-        status: "pending", // Set status as pending initially
+        status: "pending",
       },
     ]);
+
+    setLoading(false);
 
     if (error) {
       console.log("Error booking appointment:", error.message);
     } else {
-      console.log("Appointment booked:", data);
-      // Reset form fields after booking
       setDialogOpen(false);
       setSelectedSlot(null);
       setCategory("");
@@ -197,65 +188,94 @@ export default function BookAppointment() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row p-4 gap-4">
-      {/* Mentor Details */}
-      <Card className="md:w-1/3 w-full">
-        <CardContent className="p-4 space-y-4">
+    <div className="flex flex-col md:flex-row gap-6 p-6 max-w-7xl mx-auto">
+      {/* Mentor Details + Calendar */}
+      <Card className="md:w-1/3 w-full shadow-lg border border-gray-200">
+        <CardContent className="space-y-6">
           {mentor ? (
             <>
-              <div>
-                <h2 className="text-xl font-semibold">{mentor.full_name}</h2>
+              <div className="space-y-1">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {mentor.full_name}
+                </h2>
                 <p className="text-sm text-muted-foreground">
-                  {mentor.job_role} at {mentor.company}
+                  {mentor.job_role} at{" "}
+                  <span className="font-semibold">{mentor.company}</span>
                 </p>
-                <p className="text-sm">Country: {mentor.country}</p>
-                <p className="text-sm">Bio: {mentor.bio}</p>
+                <p className="text-sm text-muted-foreground">
+                  Country: {mentor.country}
+                </p>
+                <p className="text-sm text-gray-700 mt-2 whitespace-pre-line">
+                  {mentor.bio}
+                </p>
               </div>
+
               <Calendar
                 mode="single"
                 selected={selectedDate}
                 onSelect={setSelectedDate}
-                className="rounded-md border"
+                className="rounded-md border border-gray-300 shadow-sm"
               />
             </>
           ) : (
-            <p>Loading mentor details...</p>
+            <p className="text-center py-10 text-muted-foreground">
+              Loading mentor details...
+            </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Time Slots */}
-      <Card className="md:w-2/3 w-full h-[400px]">
-        <CardContent className="p-4">
-          <h2 className="text-lg font-semibold mb-2">
+      {/* Slots and Booking */}
+      <Card className="md:w-2/3 w-full shadow-lg border border-gray-200 flex flex-col">
+        <CardContent className="flex flex-col flex-grow p-6">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900">
             {selectedDate
               ? `Available Slots for ${selectedDate.toDateString()}`
               : "Please select a date"}
           </h2>
-          <ScrollArea className="h-[300px] pr-2">
-            <div className="flex flex-col gap-2">
+
+          <ScrollArea className="flex-grow border border-gray-300 rounded-md p-3">
+            <div className="grid grid-cols-3 gap-3">
               {selectedDate && slots.length > 0 ? (
-                slots.map((slot, index) => (
-                  <div
-                    key={index}
-                    onClick={() => {
-                      if (!bookedSlots.includes(slot)) {
-                        setSelectedSlot(slot);
-                        setDialogOpen(true);
-                      }
-                    }}
-                    className={`border rounded-md p-2 cursor-pointer transition ${
-                      bookedSlots.includes(slot)
-                        ? "bg-gray-300 cursor-not-allowed"
-                        : "hover:bg-muted"
-                    }`}
-                  >
-                    {format12Hour(slot)}
-                  </div>
-                ))
+                slots.map((slot) => {
+                  const isBooked = bookedSlots.includes(slot);
+                  const isSelected = selectedSlot === slot;
+                  return (
+                    <button
+                      key={slot}
+                      disabled={isBooked}
+                      onClick={() => {
+                        if (!isBooked) {
+                          setSelectedSlot(slot);
+                          setDialogOpen(true);
+                        }
+                      }}
+                      className={`
+                        py-2 px-3 rounded-md text-sm font-medium
+                        transition
+                        ${
+                          isBooked
+                            ? "bg-gray-300 cursor-not-allowed text-gray-600"
+                            : isSelected
+                              ? "bg-blue-600 text-white shadow-md"
+                              : "bg-white hover:bg-blue-100 text-gray-900"
+                        }
+                      `}
+                      aria-pressed={isSelected}
+                    >
+                      {format12Hour(slot)}
+                    </button>
+                  );
+                })
               ) : selectedDate ? (
-                <p>No slots available for this day.</p>
-              ) : null}
+                <p className="text-center text-muted-foreground col-span-3 mt-8">
+                  No slots available for this day.
+                </p>
+              ) : (
+                <p className="text-center text-muted-foreground col-span-3 mt-8">
+                  Select a date to view available slots.
+                </p>
+              )}
             </div>
           </ScrollArea>
         </CardContent>
@@ -263,40 +283,60 @@ export default function BookAppointment() {
 
       {/* Booking Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Book Slot at {selectedSlot}</DialogTitle>
+            <DialogTitle className="text-lg font-semibold">
+              Book Slot at {selectedSlot ? format12Hour(selectedSlot) : ""}
+            </DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4">
             <div>
-              <Label className="mb-1 block">Category</Label>
-              <Select onValueChange={setCategory}>
-                <SelectTrigger>
+              <Label htmlFor="category" className="mb-1">
+                Category
+              </Label>
+              <Select
+                onValueChange={(value) => setCategory(value)}
+                value={category}
+                id="category"
+                required
+              >
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="career">Career Guidance</SelectItem>
-                  <SelectItem value="tech">Tech Interview</SelectItem>
-                  <SelectItem value="resume">Resume Review</SelectItem>
-                  <SelectItem value="general">General Advice</SelectItem>
+                  <SelectItem value="career">Career Advice</SelectItem>
+                  <SelectItem value="technical">Technical Help</SelectItem>
+                  <SelectItem value="personal">Personal Guidance</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
             <div>
-              <Label className="mb-1 block">Notes</Label>
+              <Label htmlFor="notes" className="mb-1">
+                Notes
+              </Label>
               <Textarea
-                placeholder="Write a note to your mentor..."
+                id="notes"
+                placeholder="Add any notes for the mentor..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                rows={4}
               />
             </div>
           </div>
-
-          <DialogFooter>
-            <Button onClick={handleBookAppointment} disabled={loading}>
-              {loading ? "Processing..." : "Book Now"}
+          <DialogFooter className="mt-6 flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!selectedSlot || !category || loading}
+              onClick={handleBookAppointment}
+            >
+              {loading ? "Booking..." : "Book Appointment"}
             </Button>
           </DialogFooter>
         </DialogContent>

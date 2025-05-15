@@ -2,7 +2,13 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -156,14 +162,24 @@ export default function Onboarding({ userData, toggleStatus }) {
         {role === "mentor" && (
           <>
             <div className="space-y-2">
-              <Label htmlFor="jobRole">Job Role</Label>
-              <Input
-                id="jobRole"
-                type="text"
-                value={jobRole}
-                onChange={(e) => setJobRole(e.target.value)}
-                placeholder="Enter your job role"
-              />
+              <Label htmlFor="jobRole">Field</Label>
+              <Select value={jobRole} onValueChange={setJobRole}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select your job role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Software Development">
+                    Software Development
+                  </SelectItem>
+                  <SelectItem value="Product Management">
+                    Product Management
+                  </SelectItem>
+                  <SelectItem value="Product Design">Product Design</SelectItem>
+                  <SelectItem value="Sales and Marketing">
+                    Sales and Marketing
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

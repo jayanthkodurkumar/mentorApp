@@ -6,7 +6,6 @@ import ViewAppointments from "./ViewAppointments";
 const MenteeDashboard = () => {
   return (
     <div>
-      <ViewAppointments />
       <ViewMentorsList />
     </div>
   );

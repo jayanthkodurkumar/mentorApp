@@ -96,7 +96,7 @@ export async function POST(req) {
         <td style="padding: 8px 0;"><a href="${meet_url}" style="color: #4f46e5;">Join Meeting</a></td>
       </tr>
       <tr style="border-top: 1px solid #e0e0e0;">
-        <td style="padding: 12px 0; color: #333;"><strong>Total Paid:</strong></td>
+        <td style="padding: 12px 0; color: #333;"><strong>Amount Paid:</strong></td>
         <td style="padding: 12px 0;"><strong>$${formattedAmount} USD</strong></td>
       </tr>
     </table>

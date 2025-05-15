@@ -39,7 +39,16 @@ const MentorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedAppt, setSelectedAppt] = useState(null);
   const [mentorNotes, setMentorNotes] = useState("");
-  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+
+  const [groupedAppointments, setGroupedAppointments] = useState({
+    upcoming: [],
+    pending: [],
+    accepted: [],
+    cancelled: [],
+    declined: [],
+    completed: [],
+  });
 
   useEffect(() => {
     if (!user?.id) return;
@@ -94,11 +103,39 @@ const MentorDashboard = () => {
     fetchAppointments();
   }, [user?.id]);
 
+  useEffect(() => {
+    const now = new Date();
+
+    const groups = {
+      upcoming: [],
+      pending: [],
+      accepted: [],
+      cancelled: [],
+      declined: [],
+      completed: [],
+    };
+
+    appointments.forEach((appt) => {
+      const appointmentDateTime = new Date(
+        `${appt.appointment_date}T${appt.start_time}`
+      );
+
+      if (appt.status === "booked" && appointmentDateTime >= now) {
+        groups.upcoming.push(appt);
+      } else if (groups[appt.status]) {
+        groups[appt.status].push(appt);
+      }
+    });
+
+    setGroupedAppointments(groups);
+  }, [appointments]);
+
   const notifyMentee = async (
     mentor_name,
     status,
     mentee_email,
-    appointment_date
+    appointment_date,
+    mentor_notes = ""
   ) => {
     try {
       const response = await axios.post("/api/emailnotification", {
@@ -106,6 +143,7 @@ const MentorDashboard = () => {
         status,
         mentee_email,
         appointment_date,
+        mentor_notes,
       });
 
       console.log("Notification sent:", response.data.message);
@@ -117,7 +155,7 @@ const MentorDashboard = () => {
     }
   };
 
-  const updateStatus = async (id, newStatus) => {
+  const updateStatus = async (id, newStatus, notes = "") => {
     const { data: appointment, error: apptError } = await supabase
       .from("appointments")
       .select("mentor_id, mentee_id, appointment_date")
@@ -146,113 +184,51 @@ const MentorDashboard = () => {
       return;
     }
 
-    if (newStatus === "accepted") {
-      const { error } = await supabase
-        .from("appointments")
-        .update({ status: newStatus, meet_url: mentorData.meet_url })
-        .eq("id", id);
-      if (error) {
-        alert("Failed to update status");
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from("appointments")
-        .update({ status: newStatus })
-        .eq("id", id);
-      if (error) {
-        alert("Failed to update status");
-        return;
-      }
+    const updates = {
+      status: newStatus,
+      mentor_notes: notes,
+      ...(newStatus === "accepted" && { meet_url: mentorData.meet_url }),
+    };
+
+    const { error } = await supabase
+      .from("appointments")
+      .update(updates)
+      .eq("id", id);
+
+    if (error) {
+      alert("Failed to update status");
+      return;
     }
 
     notifyMentee(
       mentorData.full_name,
       newStatus,
       menteeData.email,
-      appointment.appointment_date
+      appointment.appointment_date,
+      notes
     );
 
     setAppointments((prev) =>
       prev.map((appt) =>
-        appt.id === id ? { ...appt, status: newStatus } : appt
-      )
-    );
-    setSelectedAppt(null);
-  };
-
-  const completeAppointment = async () => {
-    const appointmentStart = new Date(selectedAppt.start_time);
-    const now = new Date();
-
-    // Check if it's the same calendar date
-    const isSameDate =
-      now.getFullYear() === appointmentStart.getFullYear() &&
-      now.getMonth() === appointmentStart.getMonth() &&
-      now.getDate() === appointmentStart.getDate();
-
-    // Check if current time is at least 15 minutes past start_time
-    const fifteenMinutesInMs = 15 * 60 * 1000;
-    const isPastFifteenMinutes =
-      now.getTime() >= appointmentStart.getTime() + fifteenMinutesInMs;
-
-    if (!isSameDate || !isPastFifteenMinutes) {
-      alert(
-        "You can only complete an appointment at least 15 minutes after its start time on the same day."
-      );
-      return;
-    }
-
-    const { error } = await supabase
-      .from("appointments")
-      .update({
-        status: "completed",
-        mentor_notes: mentorNotes,
-      })
-      .eq("id", selectedAppt.id);
-
-    if (error) {
-      alert("Failed to complete appointment");
-      return;
-    }
-
-    setAppointments((prev) =>
-      prev.map((appt) =>
-        appt.id === selectedAppt.id
-          ? { ...appt, status: "completed", mentor_notes: mentorNotes }
+        appt.id === id
+          ? { ...appt, status: newStatus, mentor_notes: notes }
           : appt
       )
     );
-
-    setShowCompleteDialog(false);
     setSelectedAppt(null);
     setMentorNotes("");
+    setShowCancelDialog(false);
   };
 
-  const now = new Date();
-
-  const groupedAppointments = {
-    upcoming: [],
-    pending: [],
-    accepted: [],
-    cancelled: [],
-    declined: [],
-    completed: [],
+  const handleCancelAppointment = () => {
+    if (!mentorNotes.trim()) {
+      alert("Please provide a reason for cancellation");
+      return;
+    }
+    updateStatus(selectedAppt.id, "cancelled", mentorNotes);
   };
 
-  appointments.forEach((appt) => {
-    const appointmentDateTime = new Date(
-      `${appt.appointment_date}T${appt.start_time}`
-    );
-    if (appt.status === "booked" && appointmentDateTime >= now) {
-      groupedAppointments.upcoming.push(appt);
-    }
-    if (groupedAppointments[appt.status]) {
-      groupedAppointments[appt.status].push(appt);
-    }
-  });
-
-  const renderTable = (list) => (
+  const renderTable = (list, tabName) => (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
@@ -296,7 +272,7 @@ const MentorDashboard = () => {
                             <strong>Mentee:</strong> {appt.mentee_name}
                           </p>
                           <p>
-                            <strong>Notes:</strong>{" "}
+                            <strong>Mentee Notes:</strong>{" "}
                             {appt.mentee_notes || "No notes provided."}
                           </p>
                           <p>
@@ -308,98 +284,43 @@ const MentorDashboard = () => {
                           </p>
                           <p>
                             <strong>Status:</strong>{" "}
-                            <span className="capitalize">{appt.status}</span>
+                            {appt.status.charAt(0).toUpperCase() +
+                              appt.status.slice(1)}
                           </p>
-                          {appt.mentor_notes && (
-                            <p>
-                              <strong>Mentor Notes:</strong> {appt.mentor_notes}
-                            </p>
-                          )}
-                          {appt.mentee_notes && (
-                            <p>
-                              <strong>Mentee Notes:</strong> {appt.mentee_notes}
-                            </p>
-                          )}
-                        </div>
-                        <DialogFooter className="mt-4">
-                          {appt.status === "pending" && (
-                            <>
-                              <Button
-                                onClick={() =>
-                                  updateStatus(appt.id, "accepted")
-                                }
-                              >
-                                Accept Request
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                onClick={() =>
-                                  updateStatus(appt.id, "declined")
-                                }
-                              >
-                                Decline Request
-                              </Button>
-                            </>
-                          )}
-                          {appt.status === "accepted" && (
-                            <>
+
+                          {tabName === "pending" &&
+                            appt.status === "booked" && (
+                              <div className="flex gap-2 mt-4">
+                                <Button
+                                  variant="outline"
+                                  onClick={() =>
+                                    updateStatus(appt.id, "accepted")
+                                  }
+                                >
+                                  Accept
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() =>
+                                    updateStatus(appt.id, "declined")
+                                  }
+                                >
+                                  Decline
+                                </Button>
+                              </div>
+                            )}
+
+                          {tabName === "accepted" &&
+                            appt.status === "accepted" && (
                               <Button
                                 variant="destructive"
-                                onClick={() =>
-                                  updateStatus(appt.id, "cancelled")
-                                }
+                                onClick={() => setShowCancelDialog(true)}
+                                className="mt-4"
                               >
                                 Cancel Appointment
                               </Button>
-                              <Button
-                                onClick={() => setShowCompleteDialog(true)}
-                              >
-                                Complete Appointment
-                              </Button>
-                            </>
-                          )}
-                        </DialogFooter>
-
-                        {showCompleteDialog && (
-                          <Dialog
-                            open={showCompleteDialog}
-                            onOpenChange={setShowCompleteDialog}
-                          >
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Complete Appointment</DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-2 text-sm">
-                                <p>
-                                  Please enter your notes for the appointment:
-                                </p>
-                                <textarea
-                                  className="w-full p-2 border rounded-md"
-                                  rows={4}
-                                  value={mentorNotes}
-                                  onChange={(e) =>
-                                    setMentorNotes(e.target.value)
-                                  }
-                                  placeholder="Enter mentor notes..."
-                                />
-                              </div>
-                              <DialogFooter className="mt-4">
-                                <Button onClick={completeAppointment}>
-                                  Submit & Complete
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => {
-                                    setShowCompleteDialog(false);
-                                    setMentorNotes("");
-                                  }}
-                                >
-                                  Cancel
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        )}
+                            )}
+                        </div>
                       </DialogContent>
                     )}
                   </Dialog>
@@ -409,41 +330,73 @@ const MentorDashboard = () => {
           )}
         </TableBody>
       </Table>
+
+      {/* Cancel Confirmation Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Appointment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>Please provide a reason for cancelling this appointment:</p>
+            <textarea
+              className="w-full border rounded p-2 min-h-[100px]"
+              placeholder="Enter your reason for cancellation..."
+              value={mentorNotes}
+              onChange={(e) => setMentorNotes(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCancelDialog(false)}
+            >
+              Back
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelAppointment}
+              disabled={!mentorNotes.trim()}
+            >
+              Confirm Cancellation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
   if (loading) return <div className="p-4">Loading appointments...</div>;
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Your Appointments</h2>
-
-      <Tabs defaultValue="upcoming" className="w-full">
-        <TabsList className="mb-4">
+    <div className="p-4 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Mentor Dashboard</h1>
+      <Tabs defaultValue="upcoming" className="space-y-4">
+        <TabsList>
           <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="pending">Pending Requests</TabsTrigger>
+          <TabsTrigger value="pending">Pending</TabsTrigger>
           <TabsTrigger value="accepted">Accepted</TabsTrigger>
           <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
           <TabsTrigger value="declined">Declined</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming">
-          {renderTable(groupedAppointments.upcoming)}
+          {renderTable(groupedAppointments.upcoming, "upcoming")}
         </TabsContent>
         <TabsContent value="pending">
-          {renderTable(groupedAppointments.pending)}
+          {renderTable(groupedAppointments.pending, "pending")}
         </TabsContent>
         <TabsContent value="accepted">
-          {renderTable(groupedAppointments.accepted)}
+          {renderTable(groupedAppointments.accepted, "accepted")}
         </TabsContent>
         <TabsContent value="cancelled">
-          {renderTable(groupedAppointments.cancelled)}
+          {renderTable(groupedAppointments.cancelled, "cancelled")}
         </TabsContent>
         <TabsContent value="declined">
-          {renderTable(groupedAppointments.declined)}
+          {renderTable(groupedAppointments.declined, "declined")}
         </TabsContent>
         <TabsContent value="completed">
-          {renderTable(groupedAppointments.completed)}
+          {renderTable(groupedAppointments.completed, "completed")}
         </TabsContent>
       </Tabs>
     </div>

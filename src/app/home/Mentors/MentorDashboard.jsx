@@ -289,7 +289,7 @@ const MentorDashboard = () => {
                           </p>
 
                           {tabName === "pending" &&
-                            appt.status === "booked" && (
+                            appt.status === "pending" && (
                               <div className="flex gap-2 mt-4">
                                 <Button
                                   variant="outline"

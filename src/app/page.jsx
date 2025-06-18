@@ -27,7 +27,7 @@ export default function Home() {
       .eq("clerk_id", userId);
 
     if (error) {
-      console.error("Supabase error:", error.message);
+      console.log("Supabase error:", error.message);
       return;
     }
 

@@ -116,31 +116,23 @@ export default function BookAppointment() {
         .toLocaleDateString("en-US", { weekday: "long" })
         .toLowerCase();
 
-      const { data, error } = await supabase
+      const { data: schedule, error: scheduleError } = await supabase
         .from("mentor_schedules")
         .select("start_time, end_time, status")
         .eq("mentor_id", mentorId)
         .eq("day_of_week", weekday)
         .single();
 
-      if (error) {
-        console.log("Error fetching schedule:", error.message);
+      if (scheduleError) {
+        console.log("Error fetching schedule:", scheduleError.message);
         setSlots([]);
         return;
       }
 
-      // if the mentor is unavailable, skip generating slots
-      if (!data || data.status !== "available") {
+      if (!schedule || schedule.status !== "available") {
         setSlots([]);
         return;
       }
-
-      const slotList = generateTimeSlots(
-        data.start_time,
-        data.end_time,
-        booked
-      );
-      setSlots(slotList);
 
       const { data: bookedData, error: bookedError } = await supabase
         .from("appointments")
@@ -156,19 +148,12 @@ export default function BookAppointment() {
       const booked = bookedData.map((a) => a.start_time.slice(0, 5));
       setBookedSlots(booked);
 
-      if (error) {
-        console.log("Error fetching schedule:", error.message);
-        setSlots([]);
-      } else if (data) {
-        const slotList = generateTimeSlots(
-          data.start_time,
-          data.end_time,
-          booked
-        );
-        setSlots(slotList);
-      } else {
-        setSlots([]);
-      }
+      const slotList = generateTimeSlots(
+        schedule.start_time,
+        schedule.end_time,
+        booked
+      );
+      setSlots(slotList);
     };
 
     fetchSchedule();

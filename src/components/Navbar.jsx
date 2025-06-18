@@ -22,7 +22,7 @@ export default function Navbar() {
         .single();
 
       if (data) setUserInfo(data);
-      else console.error("Error fetching user role:", error);
+      else console.log("Error fetching user role:", error);
     };
 
     fetchUser();
